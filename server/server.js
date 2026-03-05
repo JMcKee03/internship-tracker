@@ -20,7 +20,7 @@ app.use(express.json());
    Health Check Route
 ======================== */
 app.get("/", (req, res) => {
-  res.json({ message: "API is running 🚀" });
+  res.json({ message: "API is running" });
 });
 
 /* ========================
