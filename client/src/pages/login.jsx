@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { loginUser } from "../services/authService";
+
 
 function Login() {
   const navigate = useNavigate();
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -23,7 +27,6 @@ function Login() {
     try {
       const data = await loginUser(formData);
 
-      // Save JWT
       localStorage.setItem("userInfo", JSON.stringify(data));
 
       navigate("/dashboard");
@@ -38,6 +41,7 @@ function Login() {
         <h1>Login</h1>
 
         <form onSubmit={handleSubmit}>
+
           <input
             type="email"
             name="email"
@@ -46,16 +50,30 @@ function Login() {
             required
           />
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            onChange={handleChange}
-            required
-          />
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Password"
+              onChange={handleChange}
+              required
+            />
+
+            <button
+              type="button"
+              className="show-btn"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
 
           <button type="submit">Login</button>
         </form>
+
+        <p className="auth-switch">
+          Don't have an account? <Link to="/register">Register</Link>
+        </p>
       </div>
     </div>
   );

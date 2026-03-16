@@ -183,3 +183,231 @@ body {
     transform: scale(1);
   }
 }
+
+.auth-switch {
+  margin-top: 20px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.auth-switch a {
+  color: #646cff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.password-field {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.password-field input {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+}
+
+.show-btn {
+  border-radius: 8px;
+  border: none;
+  background: #646cff;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  max-height: 40px;
+}
+
+.show-btn:hover {
+  background: #535bf2;
+}
+
+
+
+
+
+
+
+
+
+/* DASHBOARD */
+
+.dashboard-container {
+  padding: 40px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.dashboard-actions button {
+  margin-left: 10px;
+}
+
+/* KANBAN BOARD */
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.kanban-column {
+  background: rgba(31,31,46,0.8);
+  padding: 20px;
+  border-radius: 12px;
+  min-height: 400px;
+}
+
+.kanban-column h2 {
+  margin-bottom: 20px;
+}
+
+/* APPLICATION CARD */
+
+.kanban-card {
+  background: #1f1f2e;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+/* ============================= */
+/* DASHBOARD LAYOUT */
+/* ============================= */
+
+.dashboard-container {
+  padding: 50px 60px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 50px;
+}
+
+.dashboard-title h1 {
+  margin: 0;
+  font-size: 34px;
+}
+
+.dashboard-title p {
+  opacity: 0.6;
+  margin-top: 6px;
+}
+
+/* ============================= */
+/* BUTTONS */
+/* ============================= */
+
+.primary-btn {
+  background: linear-gradient(135deg,#646cff,#7a7fff);
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .25s ease;
+  box-shadow: 0 6px 18px rgba(100,108,255,.35);
+}
+
+.primary-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(100,108,255,.45);
+}
+
+.secondary-btn {
+  margin-left: 10px;
+  background: rgba(255,255,255,0.05);
+  padding: 12px 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all .25s ease;
+}
+
+.secondary-btn:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* ============================= */
+/* KANBAN BOARD */
+/* ============================= */
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 25px;
+}
+
+/* ============================= */
+/* COLUMNS */
+/* ============================= */
+
+.kanban-column {
+  background: rgba(31,31,46,0.75);
+  backdrop-filter: blur(10px);
+  padding: 22px;
+  border-radius: 14px;
+  min-height: 420px;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: all .25s ease;
+}
+
+.kanban-column:hover {
+  border: 1px solid rgba(100,108,255,0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+
+.kanban-column h2 {
+  margin-bottom: 20px;
+  font-size: 18px;
+  letter-spacing: .5px;
+  opacity: .9;
+}
+
+/* ============================= */
+/* APPLICATION CARDS */
+/* ============================= */
+
+.kanban-card {
+  background: linear-gradient(145deg,#1c1c2d,#23233a);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: all .25s ease;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+.kanban-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,.45);
+  border: 1px solid rgba(100,108,255,0.3);
+}
+
+.kanban-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.kanban-card p {
+  margin-top: 5px;
+  opacity: .6;
+  font-size: 13px;
+}
