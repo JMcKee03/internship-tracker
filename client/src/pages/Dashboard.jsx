@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getApplications,
@@ -9,7 +9,11 @@ import {
 } from "../services/applicationService";
 import {
   DndContext,
-  closestCorners
+  closestCorners,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors
 } from "@dnd-kit/core";
 
 import {
@@ -70,12 +74,26 @@ function DroppableColumn({ status, applications, children }) {
 function Dashboard() {
   const navigate = useNavigate();
 
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userInfo = useMemo(() => {
+    const data = localStorage.getItem("userInfo");
+    return data ? JSON.parse(data) : null;
+  }, []);
 
   const [applications, setApplications] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+
+  const pointerSensorOptions = useMemo(() => ({
+    activationConstraint: {
+      distance: 5,
+    },
+  }), []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, pointerSensorOptions)
+  );
 
   const [formData, setFormData] = useState({
     company: "",
@@ -132,89 +150,93 @@ function Dashboard() {
     }
   };
 
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
 
+  const handleDragOver = (event) => {
+    const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const activeId = active.id;
     const overId = over.id;
 
-    const activeApp = applications.find(app => app._id === activeId);
-    if (!activeApp) return;
+    setApplications((items) => {
+      const activeIndex = items.findIndex((app) => app._id === activeId);
+      const overIndex = items.findIndex((app) => app._id === overId);
 
-    let newStatus = overId;
-    if (!statuses.includes(newStatus)) {
-      const overApp = applications.find(app => app._id === newStatus);
-      if (overApp) {
-        newStatus = overApp.status;
+      if (activeIndex === -1) return items;
+
+      const activeApp = items[activeIndex];
+      let overStatus = overId;
+
+      if (!statuses.includes(overStatus)) {
+        if (overIndex >= 0) {
+          overStatus = items[overIndex].status;
+        } else {
+          return items;
+        }
       }
-    }
 
-    if (!statuses.includes(newStatus)) return;
+      // If moving within the same column, let SortableContext handle visual sorting (and DragEnd will handle the arrayMove)
+      if (activeApp.status === overStatus) {
+        return items;
+      }
 
-    // First do optimistic UI update locally
-    let updatedApplications = [];
+      // Dragging across columns: update status and visually move item to new column
+      const itemsClone = [...items];
+      itemsClone[activeIndex] = { ...itemsClone[activeIndex], status: overStatus };
+
+      if (overIndex >= 0) {
+        return arrayMove(itemsClone, activeIndex, overIndex);
+      } else {
+        const [movedApp] = itemsClone.splice(activeIndex, 1);
+        itemsClone.push(movedApp);
+        return itemsClone;
+      }
+    });
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+    
+    let finalPayload = [];
 
     setApplications((items) => {
       const oldIndex = items.findIndex((app) => app._id === activeId);
       const newIndex = items.findIndex((app) => app._id === overId);
 
-      const itemsClone = [...items];
+      let updatedState = [...items];
 
-      if (activeApp.status === newStatus) {
-        if (newIndex >= 0) {
-          updatedApplications = arrayMove(itemsClone, oldIndex, newIndex);
-        }
-      } else {
-        itemsClone[oldIndex] = { ...itemsClone[oldIndex], status: newStatus }
-      };
-      if (newIndex >= 0) {
-        updatedApplications = arrayMove(itemsClone, oldIndex, newIndex);
-      } else {
-        const [movedApp] = itemsClone.splice(oldIndex, 1);
-        itemsClone.push(movedApp);
-        updatedApplications = itemsClone;
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        updatedState = arrayMove(items, oldIndex, newIndex);
+      } else if (oldIndex !== -1 && statuses.includes(overId)) {
+        updatedState = items;
       }
-      return updatedApplications.length > 0 ? updatedApplications : itemsClone;
-    })
+
+      finalPayload = updatedState;
+      return updatedState;
+    });
+
+    setActiveId(null);
+
+    if (finalPayload.length > 0) {
+      try {
+        const updates = finalPayload.map((app, index) => ({
+          _id: app._id,
+          order: index,
+          status: app.status
+        }));
+        await reorderApplications(updates);
+      } catch (err) {
+        console.log(err);
+      }
+    }
   };
-
-  // We also need to get the finalApps to send to the backend. We can recreate them here (or use the returned value if we used a ref, but recalculating is fine)
-  const finalApps = [...applications];
-  const oldIndex = finalApps.findIndex((app) => app._id === activeId);
-  const newIndex = finalApps.findIndex((app) => app._id === overId);
-
-  let updatedApps = [];
-  if (activeApp.status === newStatus) {
-    if (newIndex >= 0) {
-      updatedApps = arrayMove(finalApps, oldIndex, newIndex);
-    }
-  } else {
-    finalApps[oldIndex] = { ...finalApps[oldIndex], status: newStatus };
-    if (newIndex >= 0) {
-      updatedApps = arrayMove(finalApps, oldIndex, newIndex);
-    } else {
-      const [movedApp] = finalApps.splice(oldIndex, 1);
-      finalApps.push(movedApp);
-      updatedApps = finalApps;
-    }
-  }
-
-  const payloadApps = updatedApps.length > 0 ? updatedApps : finalApps;
-
-  // Then update status and order on the backend
-  try {
-    const updates = payloadApps.map((app, index) => ({
-      _id: app._id,
-      order: index,
-      status: app.status
-    }));
-    await reorderApplications(updates);
-  } catch (err) {
-    console.error("Failed to update status and order on server:", err);
-  }
-};
 
 /* =========================
    FORM HANDLERS
@@ -278,7 +300,10 @@ return (
     </div>
 
     <DndContext
+      sensors={sensors}
       collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="kanban-board">
@@ -319,6 +344,21 @@ return (
           </DroppableColumn>
         ))}
       </div>
+      <DragOverlay>
+        {activeId ? (() => {
+          const activeApp = applications.find(app => app._id === activeId);
+          return activeApp ? (
+            <div className="kanban-card" style={{ opacity: 0.8, cursor: "grabbing" }}>
+              <h3>{activeApp.company}</h3>
+              <p>{activeApp.position}</p>
+              <div className="card-actions">
+                <button>Edit</button>
+                <button>Delete</button>
+              </div>
+            </div>
+          ) : null;
+        })() : null}
+      </DragOverlay>
     </DndContext>
 
     {/* =========================
@@ -384,7 +424,7 @@ return (
     )}
 
   </div>
-)
-  ;
+  );
+}
 
 export default Dashboard;

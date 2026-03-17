@@ -88,7 +88,7 @@ router.put("/reorder", protect, async (req, res) => {
     const bulkOps = updates.map(u => ({
       updateOne: {
         filter: { _id: u._id, user: req.user._id },
-        update: { order: u.order, status: u.status }
+        update: { $set: { order: u.order, status: u.status } }
       }
     }));
 
