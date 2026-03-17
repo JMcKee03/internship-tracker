@@ -21,7 +21,7 @@ function SortableItem({ app, children }) {
     setNodeRef,
     transform,
     transition
-  } = useSortable({ id: app.id });
+  } = useSortable({ _id: app._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -75,8 +75,8 @@ function Dashboard() {
     setShowModal(true);
   };
 
-  const editApplication = (id) => {
-    const app = applications.find((a) => a.id === id);
+  const editApplication = (_id) => {
+    const app = applications.find((a) => a._id === _id);
 
     setEditingApp(app);
     setFormData({
@@ -88,19 +88,19 @@ function Dashboard() {
     setShowModal(true);
   };
 
-  const deleteApplication = (id) => {
-    setApplications(applications.filter((app) => app.id !== id));
+  const deleteApplication = (_id) => {
+    setApplications(applications.filter((app) => app._id !== _id));
   };
 
-  const moveApplication = (id) => {
-    const app = applications.find((a) => a.id === id);
+  const moveApplication = (_id) => {
+    const app = applications.find((a) => a._id === _id);
 
     const nextIndex =
       (statuses.indexOf(app.status) + 1) % statuses.length;
 
     setApplications(
       applications.map((a) =>
-        a.id === id ? { ...a, status: statuses[nextIndex] } : a
+        a._id === _id ? { ...a, status: statuses[nextIndex] } : a
       )
     );
   };
@@ -122,12 +122,12 @@ function Dashboard() {
     if (editingApp) {
       setApplications(
         applications.map((a) =>
-          a.id === editingApp.id ? { ...a, ...formData } : a
+          a._id === editingApp._id ? { ...a, ...formData } : a
         )
       );
     } else {
       const newApp = {
-        id: Date.now(),
+        _id: Date.now(),
         ...formData
       };
 
@@ -135,6 +135,11 @@ function Dashboard() {
     }
 
     setShowModal(false);
+
+    console.log("Sending this data:", {
+  ...formData,
+  user: userInfo._id
+});
   };
 
   return (
@@ -181,21 +186,21 @@ function Dashboard() {
             {applications
               .filter((app) => app.status === status)
               .map((app) => (
-                <div key={app.id} className="kanban-card">
+                <div key={app._id} className="kanban-card">
 
                   <h3>{app.company}</h3>
                   <p>{app.role}</p>
 
                   <div className="card-actions">
-                    <button onClick={() => moveApplication(app.id)}>
+                    <button onClick={() => moveApplication(app._id)}>
                       Move
                     </button>
 
-                    <button onClick={() => editApplication(app.id)}>
+                    <button onClick={() => editApplication(app._id)}>
                       Edit
                     </button>
 
-                    <button onClick={() => deleteApplication(app.id)}>
+                    <button onClick={() => deleteApplication(app._id)}>
                       Delete
                     </button>
                   </div>
