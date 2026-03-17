@@ -1,11 +1,11 @@
-### Internship Tracker
+# Internship Tracker
 ## Overview
 
 The Internship Tracker is a full-stack web application designed to help students organize, track, and manage their internship applications in one centralized platform.
 
 This application replaces the need for spreadsheets by providing a structured and interactive dashboard where users can monitor their progress throughout the recruiting process.
 
-Features
+### Features
 Application Tracking
 
 Create, update, and delete internship applications
@@ -32,8 +32,8 @@ Real-Time Updates
 
 Changes are immediately reflected in the user interface
 
-Tech Stack
-Frontend
+## Tech Stack
+### Frontend
 
 React
 
@@ -41,7 +41,7 @@ React Router
 
 DnD Kit
 
-Backend
+### Backend
 
 Node.js
 
@@ -51,7 +51,7 @@ Database
 
 MongoDB
 
-Project Structure
+# Project Structure
 internship-tracker/
 │
 ├── client/        # React frontend
@@ -65,12 +65,12 @@ git clone https://github.com/JMcKee03/internship-tracker.git
 cd internship-tracker
 Install Dependencies
 
-Backend:
+# Backend:
 
 cd server
 npm install
 
-Frontend:
+# Frontend:
 
 cd client
 npm install
@@ -82,12 +82,12 @@ MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_secret_key
 Running the Application
 
-Start the backend:
+### Start the backend:
 
 cd server
 npm start
 
-Start the frontend:
+### Start the frontend:
 
 cd client
 npm start
@@ -103,7 +103,7 @@ Move applications between stages
 
 Track progress throughout the hiring process
 
-Future Improvements
+# Future Improvements
 
 Calendar and deadline tracking
 
@@ -113,6 +113,6 @@ Analytics and reporting features
 
 Deployment to a live environment
 
-Contributing
+# Contributing
 
 Contributions are welcome. If you would like to improve the project, feel free to fork the repository and submit a pull request.
