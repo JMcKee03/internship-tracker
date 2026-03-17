@@ -27,7 +27,7 @@ router.get("/", protect, async (req, res) => {
   try {
     const applications = await Application.find({
       user: req.user._id,
-    }).sort({ createdAt: -1 });
+    }).sort({ order: 1, createdAt: -1 });
 
     res.json(applications);
   } catch (err) {
@@ -69,6 +69,31 @@ router.delete("/:id", protect, async (req, res) => {
       return res.status(404).json({ message: "Application not found" });
 
     res.json({ message: "Application deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/* =========================
+   REORDER Applications
+========================= */
+router.put("/reorder", protect, async (req, res) => {
+  try {
+    const { updates } = req.body; 
+
+    if (!updates || !Array.isArray(updates)) {
+      return res.status(400).json({ message: "Invalid updates payload" });
+    }
+
+    const bulkOps = updates.map(u => ({
+      updateOne: {
+        filter: { _id: u._id, user: req.user._id },
+        update: { order: u.order, status: u.status }
+      }
+    }));
+
+    await Application.bulkWrite(bulkOps);
+    res.json({ message: "Applications reordered successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

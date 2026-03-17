@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  getApplications,
+  createApplication,
+  updateApplication,
+  deleteApplication,
+  reorderApplications
+} from "../services/applicationService";
+import {
   DndContext,
   closestCorners
 } from "@dnd-kit/core";
 
 import {
   SortableContext,
-  verticalListSortingStrategy
+  verticalListSortingStrategy,
+  arrayMove
 } from "@dnd-kit/sortable";
 
 import { useDroppable } from "@dnd-kit/core";
@@ -21,7 +29,7 @@ function SortableItem({ app, children }) {
     setNodeRef,
     transform,
     transition
-  } = useSortable({ _id: app._id });
+  } = useSortable({ id: app._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -35,6 +43,29 @@ function SortableItem({ app, children }) {
   );
 }
 
+function DroppableColumn({ status, applications, children }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: status
+  });
+
+  const style = {
+    backgroundColor: isOver ? "rgba(0, 0, 0, 0.05)" : undefined,
+    transition: "background-color 0.2s ease",
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`kanban-column ${status.toLowerCase()}`}
+    >
+      <h2>{status}</h2>
+      <SortableContext items={applications.map(app => app._id)} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </div>
+  );
+}
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -48,7 +79,7 @@ function Dashboard() {
 
   const [formData, setFormData] = useState({
     company: "",
-    role: "",
+    position: "",
     status: "Applied"
   });
 
@@ -57,6 +88,10 @@ function Dashboard() {
   useEffect(() => {
     if (!userInfo) {
       navigate("/");
+    } else {
+      getApplications()
+        .then((data) => setApplications(data))
+        .catch((err) => console.log(err));
     }
   }, [navigate, userInfo]);
 
@@ -71,210 +106,285 @@ function Dashboard() {
 
   const openAddModal = () => {
     setEditingApp(null);
-    setFormData({ company: "", role: "", status: "Applied" });
+    setFormData({ company: "", position: "", status: "Applied" });
     setShowModal(true);
   };
 
-  const editApplication = (_id) => {
+  const handleEditApplication = (_id) => {
     const app = applications.find((a) => a._id === _id);
 
     setEditingApp(app);
     setFormData({
       company: app.company,
-      role: app.role,
+      position: app.position,
       status: app.status
     });
 
     setShowModal(true);
   };
 
-  const deleteApplication = (_id) => {
-    setApplications(applications.filter((app) => app._id !== _id));
+  const handleDeleteApplication = async (_id) => {
+    try {
+      await deleteApplication(_id);
+      setApplications(applications.filter((app) => app._id !== _id));
+    } catch (err) {
+      console.log(err);
+    }
   };
 
-  const moveApplication = (_id) => {
-    const app = applications.find((a) => a._id === _id);
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
 
-    const nextIndex =
-      (statuses.indexOf(app.status) + 1) % statuses.length;
+    if (!over || active.id === over.id) return;
 
-    setApplications(
-      applications.map((a) =>
-        a._id === _id ? { ...a, status: statuses[nextIndex] } : a
-      )
-    );
+    const activeId = active.id;
+    const overId = over.id;
+
+    const activeApp = applications.find(app => app._id === activeId);
+    if (!activeApp) return;
+
+    let newStatus = overId;
+    if (!statuses.includes(newStatus)) {
+      const overApp = applications.find(app => app._id === newStatus);
+      if (overApp) {
+        newStatus = overApp.status;
+      }
+    }
+
+    if (!statuses.includes(newStatus)) return;
+
+    // First do optimistic UI update locally
+    let updatedApplications = [];
+
+    setApplications((items) => {
+      const oldIndex = items.findIndex((app) => app._id === activeId);
+      const newIndex = items.findIndex((app) => app._id === overId);
+
+      const itemsClone = [...items];
+
+      if (activeApp.status === newStatus) {
+        if (newIndex >= 0) {
+          updatedApplications = arrayMove(itemsClone, oldIndex, newIndex);
+        }
+      } else {
+        itemsClone[oldIndex] = { ...itemsClone[oldIndex], status: newStatus }
+      };
+      if (newIndex >= 0) {
+        updatedApplications = arrayMove(itemsClone, oldIndex, newIndex);
+      } else {
+        const [movedApp] = itemsClone.splice(oldIndex, 1);
+        itemsClone.push(movedApp);
+        updatedApplications = itemsClone;
+      }
+      return updatedApplications.length > 0 ? updatedApplications : itemsClone;
+    })
   };
 
-  /* =========================
-     FORM HANDLERS
-  ========================= */
+  // We also need to get the finalApps to send to the backend. We can recreate them here (or use the returned value if we used a ref, but recalculating is fine)
+  const finalApps = [...applications];
+  const oldIndex = finalApps.findIndex((app) => app._id === activeId);
+  const newIndex = finalApps.findIndex((app) => app._id === overId);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  let updatedApps = [];
+  if (activeApp.status === newStatus) {
+    if (newIndex >= 0) {
+      updatedApps = arrayMove(finalApps, oldIndex, newIndex);
+    }
+  } else {
+    finalApps[oldIndex] = { ...finalApps[oldIndex], status: newStatus };
+    if (newIndex >= 0) {
+      updatedApps = arrayMove(finalApps, oldIndex, newIndex);
+    } else {
+      const [movedApp] = finalApps.splice(oldIndex, 1);
+      finalApps.push(movedApp);
+      updatedApps = finalApps;
+    }
+  }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const payloadApps = updatedApps.length > 0 ? updatedApps : finalApps;
 
+  // Then update status and order on the backend
+  try {
+    const updates = payloadApps.map((app, index) => ({
+      _id: app._id,
+      order: index,
+      status: app.status
+    }));
+    await reorderApplications(updates);
+  } catch (err) {
+    console.error("Failed to update status and order on server:", err);
+  }
+};
+
+/* =========================
+   FORM HANDLERS
+========================= */
+
+const handleChange = (e) => {
+  setFormData({
+    ...formData,
+    [e.target.name]: e.target.value
+  });
+};
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
     if (editingApp) {
+      const updatedApp = await updateApplication(editingApp._id, formData);
       setApplications(
         applications.map((a) =>
-          a._id === editingApp._id ? { ...a, ...formData } : a
+          a._id === editingApp._id ? updatedApp : a
         )
       );
     } else {
-      const newApp = {
-        _id: Date.now(),
-        ...formData
-      };
-
+      const newApp = await createApplication(formData);
       setApplications([...applications, newApp]);
     }
-
     setShowModal(false);
+  } catch (err) {
+    console.log(err);
+  }
+};
 
-    console.log("Sending this data:", {
-  ...formData,
-  user: userInfo._id
-});
-  };
+return (
+  <div className="dashboard-container">
 
-  return (
-    <div className="dashboard-container">
+    <div className="dashboard-header">
 
-      <div className="dashboard-header">
+      <div className="header-left">
+        <h1 className="gradient-text">Internship Tracker</h1>
+        <p className="subtitle">
+          Stay organized. Track progress. Land the offer.
+        </p>
+      </div>
 
-  <div className="header-left">
-    <h1 className="gradient-text">Internship Tracker</h1>
-    <p className="subtitle">
-      Stay organized. Track progress. Land the offer.
-    </p>
-  </div>
+      <div className="header-right">
+        <div className="user-badge">
+          <span>Welcome back</span>
+          <strong>{userInfo?.name || "User"}</strong>
+        </div>
 
-  <div className="header-right">
-    <div className="user-badge">
-      <span>Welcome back</span>
-      <strong>{userInfo?.name || "User"}</strong>
+        <button className="primary-btn" onClick={openAddModal}>
+          + Add
+        </button>
+
+        <button className="secondary-btn" onClick={logoutHandler}>
+          Logout
+        </button>
+      </div>
+
     </div>
 
-    <button className="primary-btn" onClick={openAddModal}>
-      + Add
-    </button>
-
-    <button className="secondary-btn" onClick={logoutHandler}>
-      Logout
-    </button>
-  </div>
-
-</div>
-
+    <DndContext
+      collisionDetection={closestCorners}
+      onDragEnd={handleDragEnd}
+    >
       <div className="kanban-board">
         {statuses.map((status) => (
-
-
-
-          <div
+          <DroppableColumn
             key={status}
-            className={`kanban-column ${status.toLowerCase()}`}
+            status={status}
+            applications={applications.filter(app => app.status === status)}
           >
-            
-            <h2>{status}</h2>
-
             {applications
               .filter((app) => app.status === status)
               .map((app) => (
-                <div key={app._id} className="kanban-card">
+                <SortableItem key={app._id} app={app}>
+                  <div className="kanban-card">
 
-                  <h3>{app.company}</h3>
-                  <p>{app.role}</p>
+                    <h3>{app.company}</h3>
+                    <p>{app.position}</p>
 
-                  <div className="card-actions">
-                    <button onClick={() => moveApplication(app._id)}>
-                      Move
-                    </button>
+                    <div className="card-actions">
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => handleEditApplication(app._id)}
+                      >
+                        Edit
+                      </button>
 
-                    <button onClick={() => editApplication(app._id)}>
-                      Edit
-                    </button>
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => handleDeleteApplication(app._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
 
-                    <button onClick={() => deleteApplication(app._id)}>
-                      Delete
-                    </button>
                   </div>
-
-                </div>
+                </SortableItem>
               ))}
-          </div>
+          </DroppableColumn>
         ))}
       </div>
+    </DndContext>
 
-      {/* =========================
+    {/* =========================
           MODAL
       ========================= */}
 
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+    {showModal && (
+      <div className="modal-overlay">
+        <div className="modal">
 
-            <h2>
-              {editingApp ? "Edit Application" : "Add Application"}
-            </h2>
+          <h2>
+            {editingApp ? "Edit Application" : "Add Application"}
+          </h2>
 
-            <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit}>
 
-              <input
-                type="text"
-                name="company"
-                placeholder="Company"
-                value={formData.company}
-                onChange={handleChange}
-                required
-              />
+            <input
+              type="text"
+              name="company"
+              placeholder="Company"
+              value={formData.company}
+              onChange={handleChange}
+              required
+            />
 
-              <input
-                type="text"
-                name="role"
-                placeholder="Role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-              />
+            <input
+              type="text"
+              name="position"
+              placeholder="Position"
+              value={formData.position}
+              onChange={handleChange}
+              required
+            />
 
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+            >
+              {statuses.map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+
+            <div className="modal-actions">
+              <button type="submit" className="primary-btn">
+                Save
+              </button>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setShowModal(false)}
               >
-                {statuses.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
+                Cancel
+              </button>
+            </div>
 
-              <div className="modal-actions">
-                <button type="submit" className="primary-btn">
-                  Save
-                </button>
+          </form>
 
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-
-            </form>
-
-          </div>
         </div>
-      )}
+      </div>
+    )}
 
-    </div>
-  );
-}
+  </div>
+)
+  ;
 
 export default Dashboard;
